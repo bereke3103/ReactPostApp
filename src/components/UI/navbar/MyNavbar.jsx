@@ -12,7 +12,7 @@ const MyNavbar = () => {
   };
   return (
     <div className="navbar">
-      <MyButton onClick={logout}>Выйти</MyButton>
+      {isAuth && <MyButton onClick={logout}>Выйти</MyButton>}
       <div className="navbar__links">
         <Link to="/about">О нас</Link>
         <Link to="/posts">Посты</Link>

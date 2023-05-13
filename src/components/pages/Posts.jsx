@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import '../../styles/App.css';
 import PostList from '../PostList';
 import PostForm from '../PostForm';
@@ -11,6 +11,8 @@ import MyLoader from '../UI/Loader/MyLoader';
 import { useFetching } from '../hooks/useFetching';
 import { getPageCount, getPagesArray } from '../utils/pages';
 import MyPagination from '../UI/pagination/MyPagination';
+import { useObserver } from '../hooks/useObserver';
+import MySelect from '../UI/select/MySelect';
 
 function Posts() {
   const [posts, setPosts] = useState([]);
@@ -19,11 +21,17 @@ function Posts() {
   const [limit, setLimit] = useState(10);
   const [page, setPage] = useState(1);
   const [modal, setModal] = useState(false);
+  const lastElement = useRef();
+  const observer = useRef();
 
   const [fetchPosts, isPostsLoading, postError] = useFetching(async () => {
     const response = await PostService.getAll(limit, page);
     const totalCount = response.headers['x-total-count'];
-    setPosts(response.data);
+
+    //!1 для того, чтобы данные подгружались так, как мы задумывали
+    //setPosts(posts);
+    //!2 для того, чтобы новые данные уходили вниз
+    setPosts([...posts, ...response.data]);
 
     setTotalPage(getPageCount(totalCount, limit));
   });
@@ -45,7 +53,11 @@ function Posts() {
 
   useEffect(() => {
     fetchPosts();
-  }, [page]);
+  }, [page, limit]);
+
+  useObserver(lastElement, page < totalPage, isPostsLoading, () => {
+    setPage(page + 1);
+  });
 
   return (
     <div className="App">
@@ -58,17 +70,31 @@ function Posts() {
       <hr style={{ margin: '15px 0' }} />
 
       <PostFilter filter={filter} setFilter={setFilter} />
+      <MySelect
+        value={limit}
+        onChange={(value) => setLimit(value)}
+        defaultValue="Кол-во элементов на странице"
+        options={[
+          { value: 5, name: '5' },
+          { value: 10, name: '10' },
+          { value: 25, name: '25' },
+          { value: -1, name: 'Показать все' },
+        ]}
+      />
       {postError && <h1>Произошла ошибка {postError}</h1>}
-      {isPostsLoading ? (
+      {isPostsLoading && (
         <div
           style={{ display: 'flex', justifyContent: 'center', marginTop: 50 }}
         >
           <MyLoader />
         </div>
-      ) : (
-        <PostList remove={removePost} posts={sortedAndSearchedPosts} />
       )}
 
+      <PostList remove={removePost} posts={sortedAndSearchedPosts} />
+      <div
+        ref={lastElement}
+        style={{ marginTop: 10, background: 'red', height: 5, width: '100%' }}
+      />
       <MyPagination page={page} changePage={changePage} totalPage={totalPage} />
     </div>
   );
